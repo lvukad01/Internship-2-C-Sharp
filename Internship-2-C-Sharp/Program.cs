@@ -6,6 +6,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Transactions;
 using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 class Program
 {
     static void Main(string[] args)
@@ -13,15 +14,17 @@ class Program
 
         var trips = new Dictionary<int, Tuple<string, DateTime, double, double, double, double>>()
         {
-            { 1,new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Split", new DateTime(2024, 7, 15), 410.0, 25, 50.0, Whole_price(0.08, 50.0) ) },
-            { 2, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Dubrovnik", new DateTime(2024, 8, 10), 600.0, 36, 0.0, Whole_price(0.09, 0) ) },
-            { 3, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Rijeka", new DateTime(2024, 9, 5), 160.0, 7, 30.0, Whole_price(0.07, 30.0) ) }
+            { 1,new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Split", new DateTime(2024, 7, 15), 410.0, 75, 1.5, Whole_price(75, 1.5) ) },
+            { 2, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Dubrovnik", new DateTime(2024, 8, 10), 600.0, 36, 2, Whole_price(36, 2) ) },
+            { 3, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Rijeka", new DateTime(2024, 9, 5), 160.0, 30, 1.75, Whole_price(7, 30.0) ) },
+            { 4,new Tuple<string, DateTime, double, double, double, double>( "Split - Livno", new DateTime(2025, 11, 5), 100, 25, 1, Whole_price(25,1) )  },
+            { 5,new Tuple<string, DateTime, double, double, double, double>( "Split - Bologna", new DateTime(2023, 11,12 ), 782,150 , 2, Whole_price(150,2) )  }
         };
         var users = new Dictionary<int, Tuple<string, string, DateTime, List<int>>>()
         {
-            { 1, new Tuple<string, string, DateTime,List<int>>("Nika","Vukadin", new DateTime(1990, 1, 1),new List<int>{ 1, 2 }) },
-            { 2, new Tuple<string, string, DateTime,List<int>>("Ana","Novak", new DateTime(1992, 2, 2), new List<int>{ 2 }) },
-            { 3, new Tuple<string, string, DateTime,List<int>>("Marko","Petric", new DateTime(1995, 3, 3), new List<int>{ 3 }) }
+            { 1, new Tuple<string, string, DateTime,List<int>>("Nika","Vukadin", new DateTime(1990, 1, 1),new List<int>{ 1, 5 }) },
+            { 2, new Tuple<string, string, DateTime,List<int>>("Lana","Vukadin", new DateTime(1992, 2, 2), new List<int>{ 4 }) },
+            { 3, new Tuple<string, string, DateTime,List<int>>("Marko","Petric", new DateTime(1995, 3, 3), new List<int>{ 2,4 }) }
         };
         var input = -1;
 
@@ -439,7 +442,7 @@ class Program
                     Trip_remove(users, trips);
                     break;
                 case 3:
-                    Trip_edit(users, trips);
+                    Trip_edit(trips);
                     break;
                 case 4:
                     Trips_list(users, trips);
@@ -495,6 +498,8 @@ class Program
             price = double.Parse(Console.ReadLine());
             full_price=Whole_price(gas, price);
             trips.Add(trip_id, new Tuple<string, DateTime, double, double, double, double>(destination, trip_date, km, gas, price, full_price));
+
+            choose_user(users, trip_id);
             Console.WriteLine("Putovanje uspješno dodano.");
             Thread.Sleep(2000);
             Console.Clear();
@@ -504,6 +509,29 @@ class Program
             Console.WriteLine("Greška: " + ex.Message);
         }
 
+    }
+    static void choose_user(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, int trip_id)
+    {
+        Console.WriteLine("Odaberite korisnika kojem želite dodati putovanje:");
+        int input = 0;
+       
+        foreach (var user in users)
+        {
+            Console.WriteLine($"{user.Key}- {user.Value.Item1} {user.Value.Item2}");
+        }
+        while(input==0)
+        {
+            input = int.Parse(Console.ReadLine());
+            if(users.ContainsKey(input))
+            {
+                users[input].Item4.Add(trip_id);
+            }
+            else
+            {
+                Console.WriteLine("Korisnik tog ID-a ne postoji, pokušajte ponovo");
+                input = 0;
+            }
+        }
     }
     static void Trip_remove(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
@@ -596,9 +624,92 @@ class Program
         Console.WriteLine("Putovanja uspješno izbrisana");
         Thread.Sleep(2000);
     }
-    static void Trip_edit(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_edit(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
+        Console.WriteLine("Unesite ID putovanja kojeg želite urediti:");
+        int trip_id = int.Parse(Console.ReadLine());
+        char input = '0';
+        DateTime trip_date = DateTime.MinValue;
+        double km = 0, gas = 0, price = 0, full_price = 0;
+        List<int> chosen_trips = new List<int>();
 
+        if (trips.ContainsKey(trip_id))
+        {
+            Console.WriteLine("Odaberite šta želite promijeniti:\r\n\ra)Datum\r\n\rb)Kilometražu\r\n\rc)Gorivo\r\n\rd)Cijenu goriva\r\n\re)Sve od navedeno\r\n\r0)Odustani");
+            while (input == '0')
+            {
+                input = char.Parse(Console.ReadLine());
+                input = char.ToLower(input);
+                switch (input)
+                {
+
+                    case 'a':
+                        Console.Write($"Stari datum putovanja: {trips[trip_id].Item2}\nNovi datum putovanja: ");
+
+                            trip_date = DateTime.Parse(Console.ReadLine());
+
+                       var updated_trip = new Tuple<string, DateTime, double, double, double, double>(trips[trip_id].Item1, trip_date, trips[trip_id].Item3, trips[trip_id].Item4, trips[trip_id].Item5, trips[trip_id].Item6);
+                        trips[trip_id] = updated_trip;
+
+                        break;
+                    case 'b':
+                        Console.Write($"Stara kilometraža: {trips[trip_id].Item3}\nNova kilometraža: ");
+                        km = double.Parse(Console.ReadLine());
+                        updated_trip = new Tuple<string, DateTime, double, double, double, double>(trips[trip_id].Item1, trips[trip_id].Item2,km, trips[trip_id].Item4, trips[trip_id].Item5, trips[trip_id].Item6);
+                        trips[trip_id] = updated_trip;
+
+                        break;
+                    case 'c':
+                        Console.Write($"Stara količina potrošenog goriva: {trips[trip_id].Item4} L\nNovi količina: ");
+                        gas= double.Parse(Console.ReadLine());
+                        full_price = Whole_price(gas, trips[trip_id].Item5);
+                        updated_trip = new Tuple<string, DateTime, double, double, double, double>(trips[trip_id].Item1, trips[trip_id].Item2, trips[trip_id].Item3, gas, trips[trip_id].Item5, full_price);
+                        trips[trip_id] = updated_trip;
+
+                        break;
+                    case 'd':
+                        Console.Write($"Stara cijena goriva: {trips[trip_id].Item4} L\nNova cijena: ");
+                        price = double.Parse(Console.ReadLine());
+                        full_price = Whole_price(trips[trip_id].Item4, price);
+                        updated_trip = new Tuple<string, DateTime, double, double, double, double>(trips[trip_id].Item1, trips[trip_id].Item2, trips[trip_id].Item3, trips[trip_id].Item4, price, full_price);
+                        trips[trip_id] = updated_trip;
+
+                        break;
+                    case 'e':
+                        Console.Write($"Stari datum putovanja: {trips[trip_id].Item2}\nStara kilometraža: {trips[trip_id].Item3}\nStara količina potrošenog goriva: {trips[trip_id].Item4} L\nStara cijena goriva: {trips[trip_id].Item5} \n\n");
+
+                        Console.Write("Novi datum putovanja: ");
+                        trip_date = DateTime.Parse(Console.ReadLine());
+
+                        Console.Write("Nova kilometraža: ");
+                        km = double.Parse(Console.ReadLine());
+                        Console.Write($"Nova količina potrošenog goriva: ");
+                        gas = double.Parse(Console.ReadLine());
+
+                        Console.Write($"Nova cijena: ");
+                        price = double.Parse(Console.ReadLine());
+
+                        full_price = Whole_price(gas, price);
+                        updated_trip = new Tuple<string, DateTime, double, double, double, double>(trips[trip_id].Item1,trip_date, km, gas, price, full_price);
+                        trips[trip_id] = updated_trip;
+
+                        break;
+                    case '0':
+                        break;
+                    default:
+                        Console.WriteLine("Pogrešan unos, pokušajte ponovo");
+                        break;
+
+                }
+            }
+            Console.WriteLine("Promjene uspješno spremljene");
+
+        }
+        else
+        {
+            Console.WriteLine("Putovanje s tim ID-om ne postoji");
+        }
+        Thread.Sleep(2000);
     }
     static void Trips_list(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
