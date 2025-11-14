@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Transactions;
 using System.Xml.Linq;
@@ -12,7 +14,7 @@ class Program
         var trips = new Dictionary<int, Tuple<string, DateTime, double, double, double, double>>()
         {
             { 1,new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Split", new DateTime(2024, 7, 15), 410.0, 25, 50.0, Whole_price(0.08, 50.0) ) },
-            { 2, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Dubrovnik", new DateTime(2024, 8, 10), 600.0, 36, 70.0, Whole_price(0.09, 70.0) ) },
+            { 2, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Dubrovnik", new DateTime(2024, 8, 10), 600.0, 36, 0.0, Whole_price(0.09, 0) ) },
             { 3, new Tuple<string, DateTime, double, double, double, double>( "Zagreb - Rijeka", new DateTime(2024, 9, 5), 160.0, 7, 30.0, Whole_price(0.07, 30.0) ) }
         };
         var users = new Dictionary<int, Tuple<string, string, DateTime, List<int>>>()
@@ -29,7 +31,7 @@ class Program
             Console.WriteLine("\n\t\t\t\t\tAPLIKACIJA ZA EVIDENCIJU GORIVA\n");
 
             Console.WriteLine("1 - Korisnici\n2 - Putovanja\n0 - Izlaz iz aplikacije");
-            input = Convert.ToInt32(Console.ReadLine());
+            input = int.Parse(Console.ReadLine());
 
             switch (input)
             {
@@ -37,7 +39,7 @@ class Program
                     Choice_users(users, trips);
                     break;
                 case 2:
-                    Trips_choice(users,trips);
+                    Trips_choice(users, trips);
                     break;
                 case 0:
                     Console.WriteLine("Izlaz iz aplikacije");
@@ -63,7 +65,7 @@ class Program
         {
             Console.Clear();
             Console.WriteLine("1 - Unos novog korisnika\r\n2 - Brisanje korisnika\r\n3 - Uređivanje korisnika\r\n4 - Pregled svih korisnika\r\n0 - Povratak na glavni izbornik\r\n");
-            input = Convert.ToInt32(Console.ReadLine());
+            input = int.Parse(Console.ReadLine());
 
             switch (input)
             {
@@ -95,7 +97,7 @@ class Program
     static void User_input(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.Clear();
-        int id = users.Count + 1;
+        int id = users.Keys.Max() + 1;
         int input = -1;
         string name = null, last_name = null;
         DateTime birthday = DateTime.MinValue;
@@ -116,56 +118,63 @@ class Program
                 {
                     Console.WriteLine("Unesite godinu veću od 1925 i manju od 2025");
                     birthday = DateTime.MinValue;
+                    continue;
                 }
             }
 
-            Choose_trips(chosen_trips, trips);
-            users.Add(id, new Tuple<string, string, DateTime, List<int>>(name, last_name, birthday, new List<int>(chosen_trips)));
-            Console.WriteLine("Korisnik uspješno dodan.");
-            Thread.Sleep(2000);
-            Console.Clear();
         }
         catch (Exception ex)
         {
             Console.WriteLine("Greška: " + ex.Message);
+            return;
         }
 
+        Choose_trips(chosen_trips, trips);
+        users.Add(id, new Tuple<string, string, DateTime, List<int>>(name, last_name, birthday, chosen_trips));
+        Console.WriteLine("Korisnik uspješno dodan.");
+        Thread.Sleep(2000);
+        Console.Clear();
+
     }
-    static int Choose_trips(List<int> chosen_trips, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Choose_trips(List<int> chosen_trips, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         var input = -1;
-        var trip_input = -1;
         Console.WriteLine("Unesi ID putovanja s liste za dodavanje (0 za kraj): ");
         int i = 0;
-        for (i = 1; i <= trips.Count; i++)
+        foreach (var trip in trips)
         {
-            Console.WriteLine($"{i} - {trips[i].Item1} ({trips[i].Item2.ToShortDateString()})");
+            Console.WriteLine($"{trip.Key} - {trip.Value.Item1} ({trip.Value.Item2.ToString("yyyy-mm-dd")})");
         }
         while (input != 0)
         {
-            trip_input = Convert.ToInt32(Console.ReadLine());
-            if (trip_input != 0 && trips.ContainsKey(trip_input))
-                chosen_trips.Add(trip_input);
-            else if (trip_input != 0 && trips.ContainsKey(trip_input) == false)
+            input = int.Parse(Console.ReadLine());
+            if (input != 0 && trips.ContainsKey(input)&&!chosen_trips.Contains(input))
+                chosen_trips.Add(input);
+            else if (input != 0 && trips.ContainsKey(input) == false)
                 Console.WriteLine("Pogrešan unos, pokušajte ponovo");
+            else if (input == 0 && chosen_trips.Count == 0)
+            {
+                Console.WriteLine("Morate unijeti barem  jedno putovanje");
+                input = -1;
+            }
             else
                 input = 0;
+            
         }
-        return 0;
     }
-    static int User_remove(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void User_remove(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.Clear();
-        char input = 'o';
+        char input = '0';
         Console.WriteLine("Brisanje po:\na)ID-u\nb)Imenu i Prezimenu\n");
-        while (input == 'o')
+        while (input == '0')
         {
             input = char.Parse(Console.ReadLine());
-            char.ToLower(input);
+            input=char.ToLower(input);
             if (input != 'a' && input != 'b')
             {
                 Console.WriteLine("Krivi unos, unesite opciju a ili b kako biste nastavili");
-                input = 'o';
+                input = '0';
 
             }
 
@@ -175,10 +184,9 @@ class Program
             User_remove_id(users);
         else
             User_remove_name(users);
-        return 0;
 
     }
-    static int User_remove_id(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
+    static void User_remove_id(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
     {
         int user_id = 0;
         Console.WriteLine("Upišite ID korisnika kojeg želite maknuti:");
@@ -195,9 +203,8 @@ class Program
             Console.WriteLine("Korisnik s tim ID-om ne postoji");
         }
         Thread.Sleep(2000);
-        return 0;
     }
-    static int User_remove_name(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
+    static void User_remove_name(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
     {
 
         Console.Write("Unesite ime i prezime korisnika kojeg zelite izbrisati(Ime Prezime),za odustajanje unesite 0: ");
@@ -206,16 +213,19 @@ class Program
         {
             Console.WriteLine("Povratak u izbornik korisnika\n");
             Thread.Sleep(2000);
-            return 0;
+            return;
         }
         string names = null;
         int key_delete = 0;
         foreach (var user in users)
         {
             names = user.Value.Item1 + " " + user.Value.Item2;
-            if (string.Compare(names, user_name) == 0)
+            if (string.Equals(names, user_name, StringComparison.OrdinalIgnoreCase))
             {
                 key_delete = user.Key;
+                users.Remove(key_delete);
+                Console.WriteLine("Korisnik izbrisan, povratak u izbornik korisnik");
+                return;
             }
 
         }
@@ -223,14 +233,12 @@ class Program
         {
             Console.WriteLine("Osoba nije pronađena");
             Thread.Sleep(2000);
-            return 0;
+            return;
         }
-        users.Remove(key_delete);
-        Console.WriteLine("Korisnik izbrisan, povratak u izbornik korisnik");
         Thread.Sleep(2000);
-        return 0;
+        return ;
     }
-    static int User_edit(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void User_edit(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.WriteLine("Unesite ID korisnika kojeg želite urediti:");
         int user_id = int.Parse(Console.ReadLine());
@@ -245,7 +253,7 @@ class Program
             while (input == '0')
             {
                 input = char.Parse(Console.ReadLine());
-                char.ToLower(input);
+                input=char.ToLower(input);
                 switch (input)
                 {
 
@@ -297,7 +305,6 @@ class Program
                         Console.Clear();
                         Console.Write($"Staro prezime: {users[user_id].Item2}\nNovo prezime: ");
                         last_name = Console.ReadLine();
-                        updated_user = new Tuple<string, string, DateTime, List<int>>(users[user_id].Item1, last_name, users[user_id].Item3, users[user_id].Item4);
 
                         Console.Clear();
                         Console.Write($"Stari datum rođenja: {users[user_id].Item3}\nNovi datum rođenja: ");
@@ -324,7 +331,6 @@ class Program
 
                         break;
                     case '0':
-                        return 0;
                         break;
                     default:
                         Console.WriteLine("Pogrešan unos, pokušajte ponovo");
@@ -333,8 +339,6 @@ class Program
                 }
             }
             Console.WriteLine("Promjene uspješno spremljene");
-            Thread.Sleep(2000);
-            return 0;
 
         }
         else
@@ -342,9 +346,8 @@ class Program
             Console.WriteLine("Korisnik s tim ID-om ne postoji");
         }
         Thread.Sleep(2000);
-        return 0;
     }
-    static int Users_list(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Users_list(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.Clear();
         char input = '0';
@@ -352,7 +355,7 @@ class Program
         while (input == '0')
         {
             input = char.Parse(Console.ReadLine());
-            char.ToLower(input);
+            input=char.ToLower(input);
             if (input != 'a' && input != 'b' && input != 'c')
             {
                 Console.WriteLine("Krivi unos, unesite opciju a, b ili c kako biste nastavili");
@@ -368,54 +371,41 @@ class Program
             Users_list_b(users);
         else if (input == 'c')
             Users_list_c(users, trips);
-        return 0;
     }
-    static int Users_list_a(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
+    static void Users_list_a(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
     {
         Console.WriteLine("Ispis korisnika abecedno po prezimenu:\n");
         Console.WriteLine("(ID-Ime-Prezime-Datum rodjenja)");
-        var temp = users[1];
-        int i;
-        int j;
-        for (i = 1; i <= users.Count; i++)
-        {
-            for (j = i + 1; j <= users.Count; j++)
-            {
-                if (string.Compare(users[i].Item2, users[j].Item2) > 0)
-                {
-                    temp = users[i];
-                    users[i] = users[j];
-                    users[j] = temp;
-                }
-            }
-        }
+        var users1 = users.OrderBy(t=>t.Value.Item2);
 
-        foreach (var user in users)
+        foreach (var user in users1)
         {
             Console.WriteLine($"{user.Key}-{user.Value.Item1}-{user.Value.Item2}-{user.Value.Item3.ToString("yyyy-MM-dd")}");
+        
         }
         Console.WriteLine("\n\nPritisnite bilo koju tipku za povratak na glavni izbornik");
         Console.ReadKey();
-        return 0;
 
     }
-    static int Users_list_b(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
+    static void Users_list_b(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users)
     {
         Console.WriteLine("Ispis korisnika starijih od 20:\n");
         Console.WriteLine("(ID-Ime-Prezime-Datum rodjenja)");
         DateTime now = DateTime.Now;
         foreach (var user in users)
         {
-            if (now.Year - user.Value.Item3.Year > 20)
+            DateTime birth = user.Value.Item3;
+            int age = now.Year - birth.Year;
+            if (birth.Date > now.AddYears(-age)) age--;
+            if (age >= 20)
             {
-                Console.WriteLine($"{user.Key}-{user.Value.Item1}-{user.Value.Item2}-{user.Value.Item3.ToString("yyyy-MM-dd")}");
+                Console.WriteLine($"{user.Key}-{user.Value.Item1}-{user.Value.Item2}-{birth.ToString("yyyy-MM-dd")}");
             }
         }
         Console.WriteLine("\n\nPritisnite bilo koju tipku za povratak na glavni izbornik");
         Console.ReadKey();
-        return 0;
     }
-    static int Users_list_c(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Users_list_c(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.WriteLine("Ispis korisnika s minimalno 2 putovanja:\n");
         Console.WriteLine("(ID-Ime-Prezime-Datum rodjenja)");
@@ -428,7 +418,6 @@ class Program
         }
         Console.WriteLine("\n\nPritisnite bilo koju tipku za povratak na glavni izbornik");
         Console.ReadKey();
-        return 0;
     }
     static void Trips_choice(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
@@ -439,7 +428,7 @@ class Program
 
             Console.WriteLine("1 - Unos novog putovanja\r\n2 - Brisanje putovanja\r\n3 - Uređivanje postojećeg putovanja\r\n4 - Pregled svih putovanja\r\n5 - Izvještaji i analize\r\n0 - Povratak na glavni izbornik\r\n");
 
-            input = Convert.ToInt32(Console.ReadLine());
+            input = int.Parse(Console.ReadLine());
 
             switch (input)
             {
@@ -470,16 +459,16 @@ class Program
         }
 
     }
-    static int Trip_input(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_input(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
-        int trip_id = trips.Count + 1;
+        int trip_id = trips.Keys.Max() + 1;
         string? start = null;
         string? end = null;
         DateTime trip_date = DateTime.MinValue;
         double km = 0;
         double gas = 0;
         double price = 0;
-        double full_price =0;
+        double full_price = 0;
         try
         {
             Console.Write("Unesi grad polaska: ");
@@ -504,8 +493,8 @@ class Program
             gas = double.Parse(Console.ReadLine());
             Console.Write("Unesi cijenu goriva(po L): ");
             price = double.Parse(Console.ReadLine());
-            Whole_price(gas,price);
-            trips.Add(trip_id, new Tuple<string, DateTime, double,double,double,double>(destination,trip_date,km,gas,price,full_price));
+            full_price=Whole_price(gas, price);
+            trips.Add(trip_id, new Tuple<string, DateTime, double, double, double, double>(destination, trip_date, km, gas, price, full_price));
             Console.WriteLine("Putovanje uspješno dodano.");
             Thread.Sleep(2000);
             Console.Clear();
@@ -515,11 +504,8 @@ class Program
             Console.WriteLine("Greška: " + ex.Message);
         }
 
-
-
-        return 0;
     }
-    static int Trip_remove(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_remove(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.Clear();
         char input = '0';
@@ -527,11 +513,11 @@ class Program
         while (input == '0')
         {
             input = char.Parse(Console.ReadLine());
-            char.ToLower(input);
-           switch(input)
+            input = char.ToLower(input);
+            switch (input)
             {
                 case 'a':
-                     Trip_remove_a(trips);
+                    Trip_remove_a(trips);
                     break;
                 case 'b':
                     Trip_remove_b(trips);
@@ -542,7 +528,6 @@ class Program
                 case '0':
                     Console.WriteLine("Povratak u izbornik putovanja");
                     Thread.Sleep(2000);
-                    return 0;
                     break;
                 default:
                     Console.WriteLine("Pogrešan unos, unesite a,b,c ili 0");
@@ -550,10 +535,9 @@ class Program
             }
 
         }
-       
-            return 0;
+
     }
-    static int Trip_remove_a(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_remove_a(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         int trip_id = 0;
         Console.WriteLine("Upišite ID putovanja koje želite maknuti:");
@@ -570,31 +554,8 @@ class Program
             Console.WriteLine("Putovanje s tim ID-om ne postoji");
         }
         Thread.Sleep(2000);
-        return 0;
     }
-    static int Trip_remove_b(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
-    {
-        Console.Clear();
-        Console.Write("Unesite iznos:");
-        double price=double.Parse(Console.ReadLine());
-        List<int> list = new List<int>();
-        foreach(var trip in trips)
-        {
-            if(trip.Value.Item6>price)
-            {
-                list.Add(trip.Key);
-            }
-        }
-        for(int i=0;i<list.Count;i++)
-        {
-            trips.Remove(list[i]);
-        }
-        Console.WriteLine("Putovanja uspješno izbrisana");
-        Thread.Sleep(2000);
-
-        return 0;
-    }
-    static int Trip_remove_c(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_remove_b(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
         Console.Clear();
         Console.Write("Unesite iznos:");
@@ -614,18 +575,81 @@ class Program
         Console.WriteLine("Putovanja uspješno izbrisana");
         Thread.Sleep(2000);
 
-        return 0;
     }
-    static int Trip_edit(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_remove_c(Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
-        return 0;
+        Console.Clear();
+        Console.Write("Unesite iznos:");
+        double price = double.Parse(Console.ReadLine());
+        List<int> list = new List<int>();
+        foreach (var trip in trips)
+        {
+            if (trip.Value.Item6 < price)
+            {
+                list.Add(trip.Key);
+            }
+        }
+        for (int i = 0; i < list.Count; i++)
+        {
+            trips.Remove(list[i]);
+        }
+        Console.WriteLine("Putovanja uspješno izbrisana");
+        Thread.Sleep(2000);
     }
-    static int Trips_list(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trip_edit(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
-        return 0;
+
     }
-    static int Trips_reports(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    static void Trips_list(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
     {
-        return 0;
+        Console.WriteLine("Pregled svih putovanja\r\na)Sva putovanja redom kako su spremljena\n\r\nb)Sva putovanja sortirana po trošku uzlazno\r\nc)Sva  putovanja sortirana po trošku silazno\r\nd)Sva  putovanja sortirana po kilometraži uzlazno\r\ne)Sva  putovanja sortirana po kilometraži silazno\r\nf)Sva  putovanja sortirana po datumu uzlazno\r\ng)Sva  putovanja sortirana po datumu silazno\r\n");
+        var trips1=trips.ToList();
+        char input = char.Parse(Console.ReadLine());
+        input=char.ToLower(input);
+        switch (input)
+        {
+            case 'a':
+                trips1 = trips.ToList();
+                break;
+            case 'b':
+               trips1 = trips.OrderBy(t=>t.Value.Item6).ToList();
+                
+                break;
+            case 'c':
+                trips1 = trips.OrderByDescending(t => t.Value.Item6).ToList();
+
+                break;
+            case 'd':
+                trips1 = trips.OrderBy(t => t.Value.Item3).ToList();
+                break;
+            case 'e':
+                trips1 = trips.OrderByDescending(t => t.Value.Item3).ToList();
+                break;
+            case 'f':
+                trips1 = trips.OrderBy(t => t.Value.Item2).ToList();
+                break;
+            case 'g':
+                trips1 = trips.OrderByDescending(t => t.Value.Item2).ToList();
+                break;
+            default:
+                Console.WriteLine("Pogrešan unos\n");
+                return;
+
+                
+        }
+        foreach (var trip in trips1)
+        {
+            Console.WriteLine($"\n\nPutovanje #{trip.Key}\nPolazište - Odredište: {trip.Value.Item1}\nDatum: {trip.Value.Item2}\nKilometri: {trip.Value.Item3}\nGorivo: {trip.Value.Item4} L\nCijena po litri: {trip.Value.Item5} EUR\n Ukupno: {trip.Value.Item6} EUR");
+        }
+        Console.WriteLine("\n\nPritisnite bilo koju tipku za povratak na glavni izbornik");
+        Console.ReadKey();
+    }
+
+    
+
+
+    
+    static void Trips_reports(Dictionary<int, Tuple<string, string, DateTime, List<int>>> users, Dictionary<int, Tuple<string, DateTime, double, double, double, double>> trips)
+    {
     }
 }
